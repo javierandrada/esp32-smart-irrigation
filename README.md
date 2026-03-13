@@ -115,9 +115,6 @@ graph TD
 -   **config_pins.h**\
     Centralizes GPIO pin assignments.
 
--   **config_oled.h**\
-    Contains OLED display configuration parameters.
-
 -   **config_mqtt.h**\
     Stores MQTT broker configuration and topics.
 
