@@ -234,6 +234,12 @@ The panel displays:
 
 ------------------------------------------------------------------------
 
+## Hardware Schematic
+
+![Hardware Schematic](docs/schematic.png)
+
+------------------------------------------------------------------------
+
 # Prototype
 
 ![PCB Prototype](docs/pcb.jpeg)
