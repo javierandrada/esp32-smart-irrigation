@@ -73,14 +73,25 @@ loop.\
 Each module is responsible for a specific subsystem of the irrigation
 controller.
 
-``` mermaid
-graph TD
-    MAIN[main.ino / main control loop] --> WIFI[wifi module]
-    MAIN --> MQTT[mqtt module]
-    MAIN --> SENSOR[soil moisture module]
-    MAIN --> BUTTONS[buttons module]
-    MAIN --> OLED[oled module]
-    MAIN --> PUMP[pump module]
+```mermaid
+flowchart TD
+
+A[main.ino<br>main control loop]
+
+A --> B[wifi_loop]
+A --> C[mqtt_loop]
+A --> D[soil_moisture_loop]
+A --> E[buttons_loop]
+A --> F[persist_loop]
+
+B --> G[FSM Auto / Manual]
+C --> G
+D --> G
+E --> G
+F --> G
+
+G --> H[oled_loop]
+G --> I[pump_loop]
 ```
 
 ------------------------------------------------------------------------
@@ -228,7 +239,7 @@ The panel displays:
 
 **Figure 1.** Hardware block diagram of the irrigation system.
 
-![Firmware Architecture](docs/firmware_architecture.png)
+![Firmware Architecture](docs/firmware_block_diagram.png)
 
 **Figure 2.** Firmware architecture of the embedded system.
 
