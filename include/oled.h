@@ -5,8 +5,8 @@
 #include <Wire.h>
 #include <U8g2lib.h>
 
-#define SCL_PIN 21
-#define SDA_PIN 22
+#define SCL_PIN 22
+#define SDA_PIN 21
 
 void oled88_init(void);
 void oled88_clear(void);
