@@ -27,6 +27,11 @@ const char* mqtt_server = "test.mosquitto.org";
 bool comando_pendiente = false;
 bool comando_on = false;
 bool comando_off = false;
+
+// Reconnection control
+unsigned long mqtt_reconnect_timer = 0;
+const unsigned long mqtt_reconnect_interval = 5000;
+
 /**
  * @brief MQTT message callback
  *
@@ -34,7 +39,6 @@ bool comando_off = false;
  * receives a new message. It processes the command
  * received from the MQTT broker.
  */
-
 void callback(char* topic, byte* payload, unsigned int length) {
 
   String mensaje = "";
@@ -66,12 +70,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
 /**
  * @brief Attempts to reconnect to the MQTT broker
  *
- * If the connection is lost, the system repeatedly
- * tries to reconnect and re-subscribe to the command topic.
+ * Non-blocking reconnection:
+ * tries to reconnect every 5 seconds if disconnected.
  */
 void mqtt_reconnect() {
 
-  while (!client.connected()) {
+  if (client.connected()) {
+    return;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
+  unsigned long ahora = millis();
+
+  if (ahora - mqtt_reconnect_timer >= mqtt_reconnect_interval) {
+    mqtt_reconnect_timer = ahora;
 
     Serial.print("Connecting to MQTT...");
 
@@ -81,9 +96,7 @@ void mqtt_reconnect() {
       Serial.println("MQTT -> Suscripto a riego/comando");
     } else {
       Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" retry in 5 seconds");
-      delay(5000);
+      Serial.println(client.state());
     }
   }
 }
@@ -97,6 +110,7 @@ void mqtt_loop() {
 
   if (!client.connected()) {
     mqtt_reconnect();
+    return;
   }
 
   client.loop();
@@ -106,6 +120,8 @@ void mqtt_loop() {
  * @brief Publishes soil humidity value to MQTT broker
  */
 void mqtt_publicar_humedad(float humedad) {
+
+  if (!client.connected()) return;
 
   char mensaje[10];
   dtostrf(humedad, 1, 2, mensaje);
@@ -120,6 +136,8 @@ void mqtt_publicar_humedad(float humedad) {
  * @brief Publishes pump state (ON/OFF) to MQTT broker
  */
 void mqtt_publicar_bomba(bool estado) {
+
+  if (!client.connected()) return;
 
   if (estado) {
     client.publish("riego/bomba", "ON");
