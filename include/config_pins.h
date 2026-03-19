@@ -13,5 +13,5 @@
 
 #define PIN_LED_PUMP 16
 #define PIN_LED_WIFI 2
-#define PIN_SENSOR_HUMEDAD 34
-#define PIN_BOMBA 5
+
+
