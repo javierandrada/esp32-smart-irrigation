@@ -9,10 +9,6 @@
 #include "bomba.h"
 #include "config_pins.h"
 
-// Humidity thresholds
-#define HUMEDAD_MIN 55
-#define HUMEDAD_MAX 70
-
 bool estado_bomba = false;
 
 /**
@@ -49,22 +45,9 @@ void bomba_apagar() {
     Serial.println("Riego DESACTIVADO");
 }
 
-// Automatic irrigation control
-void bomba_controlar(int humedad) {
-
-    if (humedad < HUMEDAD_MIN && !estado_bomba) {
-
-        bomba_encender();
-    }
-
-    if (humedad > HUMEDAD_MAX && estado_bomba) {
-
-        bomba_apagar();
-    }
-}
-
-// ESTA FUNCION VA FUERA DE TODO
+// Pump status function
 bool bomba_estado() {
 
     return estado_bomba;
 }
+
