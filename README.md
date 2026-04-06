@@ -33,7 +33,7 @@ device.
 -   Capacitive soil moisture sensor
 -   5V DC water pump
 -   TIP122 transistor driver
--   SSD1306 OLED display (I2C)
+-   SH1106 OLED display (I2C)
 -   Push buttons (MODE / MANUAL)
 -   Indicator LEDs:
     -   Power LED
@@ -77,13 +77,13 @@ controller.
 ```mermaid
 flowchart TD
 
-A[main.ino<br>main control loop]
+A[main.ino<br>Main Control]
 
-A --> B[wifi_loop]
-A --> C[mqtt_loop]
-A --> D[soil_moisture_loop]
-A --> E[buttons_loop]
-A --> F[persist_loop]
+A --> B[WiFi Module]
+A --> C[MQTT Module]
+A --> D[Soil Moisture Module]
+A --> E[Buttons Module]
+A --> F[Persistence Module]
 
 B --> G[FSM Auto / Manual]
 C --> G
@@ -91,8 +91,8 @@ D --> G
 E --> G
 F --> G
 
-G --> H[oled_loop]
-G --> I[pump_loop]
+G --> H[Pump Module]
+G --> I[OLED Module]
 ```
 
 ------------------------------------------------------------------------
@@ -142,8 +142,9 @@ The pump is automatically controlled based on soil humidity thresholds.
 
 ### Manual Mode
 
-The user can manually activate or deactivate the pump using: - the
-manual push button - MQTT commands from a mobile application
+The user can manually activate or deactivate the pump using:
+- the manual push button.
+- MQTT commands from a mobile application.
 
 ### WiFi Reconfiguration
 
