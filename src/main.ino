@@ -136,17 +136,17 @@ void loop() {
   switch (modo_actual) {
 
     case MODO_AUTOMATICO:
-  // Automatic irrigation control using humidity hysteresis
-  // Pump turns ON when humidity < minimum threshold
-  // Pump turns OFF when humidity > maximum threshold
+      // Automatic irrigation control using humidity hysteresis
+      // Pump turns ON when humidity < minimum threshold
+      // Pump turns OFF when humidity > maximum threshold
       if (humedad_valida) {
-      if (humedad < persist_get_hmin() && !bomba_estado()) {
-  bomba_encender();
-}
+        if (humedad < persist_get_hmin() && !bomba_estado()) {
+          bomba_encender();
+        }
 
-if (humedad > persist_get_hmax() && bomba_estado()) {
-  bomba_apagar();
-}
+        if (humedad > persist_get_hmax() && bomba_estado()) {
+          bomba_apagar();
+        }
       }
       break;
 
@@ -206,28 +206,52 @@ if (humedad > persist_get_hmax() && bomba_estado()) {
 
     Serial.println("----------------------");
   }
- if (Serial.available()) {
 
-  String comando = Serial.readString();
+  // Serial commands
+  if (Serial.available()) {
 
-  comando.trim();
+    String comando = Serial.readStringUntil('\n');
+    comando.trim();
 
-  Serial.print("Comando recibido: ");
-  Serial.println(comando);
+    Serial.print("Comando recibido: ");
+    Serial.println(comando);
 
-  if (comando.startsWith("min ")) {
+    if (comando.startsWith("hmin ")) {
+      int valor = comando.substring(5).toInt();
+      persist_set_hmin(valor);
+    }
 
-    int valor = comando.substring(4).toInt();
-    persist_set_hmin(valor);
+    else if (comando.startsWith("hmax ")) {
+      int valor = comando.substring(5).toInt();
+      persist_set_hmax(valor);
+    }
 
+    else if (comando.startsWith("ssid ")) {
+      String valor = comando.substring(5);
+      valor.trim();
+      persist_set_ssid(valor);
+      Serial.println("SSID guardado. Escriba 'reconectar' para aplicar cambios.");
+    }
+
+    else if (comando.startsWith("pass ")) {
+      String valor = comando.substring(5);
+      valor.trim();
+      persist_set_pass(valor);
+      Serial.println("PASS guardado. Escriba 'reconectar' para aplicar cambios.");
+    }
+
+    else if (comando == "reconectar") {
+      wifi_reconnect_now();
+    }
+
+    else {
+      Serial.println("Comando no reconocido");
+      Serial.println("Use:");
+      Serial.println("hmin <valor>");
+      Serial.println("hmax <valor>");
+      Serial.println("ssid <nombre_red>");
+      Serial.println("pass <clave>");
+      Serial.println("reconectar");
+    }
   }
-
-  if (comando.startsWith("max ")) {
-
-    int valor = comando.substring(4).toInt();
-    persist_set_hmax(valor);
-
-  }
-  }
-
 }
