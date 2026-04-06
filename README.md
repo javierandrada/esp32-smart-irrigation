@@ -23,6 +23,7 @@ device.
 -   OLED display for local information
 -   Configuration persistence
 -   Serial configuration interface
+-   Dynamic WiFi reconfiguration via Serial
 
 ------------------------------------------------------------------------
 
@@ -126,9 +127,6 @@ G --> I[pump_loop]
 -   **config_pins.h**\
     Centralizes GPIO pin assignments.
 
--   **config_mqtt.h**\
-    Stores MQTT broker configuration and topics.
-
 ------------------------------------------------------------------------
 
 # System Operation
@@ -146,6 +144,14 @@ The pump is automatically controlled based on soil humidity thresholds.
 
 The user can manually activate or deactivate the pump using: - the
 manual push button - MQTT commands from a mobile application
+
+### WiFi Reconfiguration
+
+The system supports dynamic WiFi reconfiguration through the serial interface.
+
+This allows changing the network credentials during runtime without restarting the ESP32.
+
+To prevent invalid connections, reconnection is triggered manually using a dedicated command.
 
 ------------------------------------------------------------------------
 
@@ -176,22 +182,37 @@ AUTO
 
 # Serial Configuration
 
-The system allows configuration through the serial monitor.
+# Serial Configuration
 
-Example commands:
+The system allows configuration through the serial monitor without needing to restart the ESP32.
 
-Change minimum humidity threshold:
+## Available commands
 
-hmin 30
+### Humidity thresholds (applied immediately)
 
-Change maximum humidity threshold:
+hmin <value>   → Set minimum humidity threshold  
+hmax <value>   → Set maximum humidity threshold  
 
-hmax 60
+These values are updated in real time and used instantly by the control logic.
 
-Change WiFi credentials:
+---
 
-ssid NetworkName\
-pass Password
+### WiFi configuration (requires manual reconnection)
+
+ssid <network_name>   → Set WiFi SSID  
+pass <password>       → Set WiFi password  
+reconectar            → Apply new WiFi configuration  
+
+The new credentials are stored in persistent memory.  
+The command `reconectar` forces the ESP32 to disconnect from the current network and connect to the new one without rebooting.
+
+---
+
+## Example
+
+ssid MyWiFi  
+pass 12345678  
+reconectar
 
 ------------------------------------------------------------------------
 
@@ -239,7 +260,7 @@ The panel displays:
 
 **Figure 1.** Hardware block diagram of the irrigation system.
 
-![Firmware Architecture](docs/firmware_block_diagram.png)
+![Firmware Architecture](docs/firmware_architecture.png)
 
 **Figure 2.** Firmware architecture of the embedded system.
 
