@@ -182,8 +182,6 @@ AUTO
 
 # Serial Configuration
 
-# Serial Configuration
-
 The system allows configuration through the serial monitor without needing to restart the ESP32.
 
 ## Available commands
