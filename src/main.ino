@@ -1,18 +1,7 @@
 /**
  * Smart Irrigation System - ESP32
- *
- * Features:
- *  - Soil humidity monitoring
- *  - Automatic irrigation control
- *  - Manual control via push button
- *  - Remote control via MQTT
- *  - OLED status display
- *  - Persistent configuration storage
- *  - WiFi connectivity
- *
- * Author: Javier Andrada
- * UTN FRRO – Embedded Systems
  */
+
 #include "wifi.h"
 #include "sensor_humedad.h"
 #include "bomba.h"
@@ -21,51 +10,103 @@
 #include "mqtt.h"
 #include "persist.h"
 
-// Finite State Machine for system mode
+// FSM
 enum ModoSistema {
   MODO_AUTOMATICO,
   MODO_MANUAL
 };
 
-// Current FSM state
 ModoSistema modo_actual = MODO_AUTOMATICO;
-
-// Used to detect mode changes
 bool modo_anterior_auto = true;
 
-// Timing variables
+// Timing
 unsigned long tiempo_reporte_serial = 0;
 unsigned long tiempo_oled = 0;
 
 const unsigned long intervalo_serial = 1000;
 const unsigned long intervalo_oled = 500;
 
-// Last humidity value
+// Variables
 int humedad = 0;
-
-// Valid humidity flag
 bool humedad_valida = false;
 
-// Pump state tracking for MQTT
 bool estado_bomba_anterior = false;
 bool estado_bomba_inicial_publicado = false;
 
-/**
- * @brief System initialization
- *
- * Initializes all modules:
- * - persistent configuration
- * - WiFi connection
- * - humidity sensor
- * - pump control
- * - push buttons
- * - OLED display
- * - MQTT communication
- */
+
+// 🔧 ================= FUNCION SERIAL =================
+void procesar_comando_serial() {
+  static char buffer[64];
+  
+  if (Serial.available()) {
+    int len = Serial.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
+
+    if (len == 0) return;
+
+    buffer[len] = '\0';
+
+    Serial.print("Comando recibido: ");
+    Serial.println(buffer);
+
+    // hmin
+    if (strncmp(buffer, "hmin ", 5) == 0) {
+      int valor = atoi(&buffer[5]);
+
+      if (valor >= 0 && valor <= 100) {
+        persist_set_hmin(valor);
+      } else {
+        Serial.println("Error: hmin fuera de rango (0-100)");
+      }
+    }
+
+    // hmax
+    else if (strncmp(buffer, "hmax ", 5) == 0) {
+      int valor = atoi(&buffer[5]);
+
+      if (valor >= 0 && valor <= 100) {
+        persist_set_hmax(valor);
+      } else {
+        Serial.println("Error: hmax fuera de rango (0-100)");
+      }
+    }
+
+    // ssid
+    else if (strncmp(buffer, "ssid ", 5) == 0) {
+      char *valor = &buffer[5];
+      persist_set_ssid(valor);
+      Serial.println("SSID guardado. Escriba 'reconectar' para aplicar cambios.");
+    }
+
+    // pass
+    else if (strncmp(buffer, "pass ", 5) == 0) {
+      char *valor = &buffer[5];
+      persist_set_pass(valor);
+      Serial.println("PASS guardado. Escriba 'reconectar' para aplicar cambios.");
+    }
+
+    // reconectar
+    else if (strcmp(buffer, "reconectar") == 0) {
+      wifi_reconnect_now();
+    }
+
+    else {
+      Serial.println("Comando no reconocido");
+      Serial.println("Use:");
+      Serial.println("hmin <valor>");
+      Serial.println("hmax <valor>");
+      Serial.println("ssid <nombre_red>");
+      Serial.println("pass <clave>");
+      Serial.println("reconectar");
+    }
+  }
+}
+// 🔧 ==================================================
+
+
+// SETUP
 void setup() {
 
   Serial.begin(115200);
-
   Serial.println("STARTING PROGRAM");
 
   persist_init();
@@ -82,36 +123,25 @@ void setup() {
   modo_actual = MODO_AUTOMATICO;
 }
 
-/**
- * @brief Main execution loop
- *
- * Executes non-blocking tasks and manages system logic:
- * - WiFi maintenance
- * - MQTT communication
- * - sensor reading
- * - FSM irrigation control
- * - OLED updates
- * - serial monitoring
- */
+
+// LOOP
 void loop() {
 
-  // Run all non-blocking tasks
   wifi_loop();
   pulsadores_loop();
   sensor_humedad_loop();
   mqtt_loop();
 
-  // Publish initial pump state only once
+  // Publicar estado inicial
   if (!estado_bomba_inicial_publicado) {
     mqtt_publicar_bomba(bomba_estado());
     estado_bomba_anterior = bomba_estado();
     estado_bomba_inicial_publicado = true;
   }
 
-  // Read mode from button module
+  // Modo
   bool modo_auto = modo_automatico();
 
-  // Detect mode change
   if (modo_auto != modo_anterior_auto) {
 
     if (modo_auto) {
@@ -125,26 +155,26 @@ void loop() {
     modo_anterior_auto = modo_auto;
   }
 
-  // Update humidity only when a full averaged value is ready
+  // Lectura sensor
   if (sensor_humedad_nuevo_dato()) {
     humedad = sensor_humedad_porcentaje();
     humedad_valida = true;
     mqtt_publicar_humedad(humedad);
   }
 
-  // FSM main logic
+  // Control FSM
   switch (modo_actual) {
 
     case MODO_AUTOMATICO:
-      // Automatic irrigation control using humidity hysteresis
-      // Pump turns ON when humidity < minimum threshold
-      // Pump turns OFF when humidity > maximum threshold
       if (humedad_valida) {
-        if (humedad < persist_get_hmin() && !bomba_estado()) {
+        int hmin = persist_get_hmin();
+        int hmax = persist_get_hmax();
+
+        if (humedad < hmin && !bomba_estado()) {
           bomba_encender();
         }
 
-        if (humedad > persist_get_hmax() && bomba_estado()) {
+        if (humedad > hmax && bomba_estado()) {
           bomba_apagar();
         }
       }
@@ -168,7 +198,7 @@ void loop() {
       break;
   }
 
-  // Publish pump state only when it changes
+  // Publicar cambios de estado
   bool estado_bomba_actual = bomba_estado();
 
   if (estado_bomba_actual != estado_bomba_anterior) {
@@ -178,13 +208,13 @@ void loop() {
 
   unsigned long ahora = millis();
 
-  // OLED update
+  // OLED
   if (ahora - tiempo_oled >= intervalo_oled) {
     tiempo_oled = ahora;
     oled88_printRiego(humedad, modo_auto, bomba_estado());
   }
 
-  // Serial report
+  // Serial info
   if (ahora - tiempo_reporte_serial >= intervalo_serial) {
     tiempo_reporte_serial = ahora;
 
@@ -193,65 +223,14 @@ void loop() {
     Serial.println("%");
 
     Serial.print("Mode: ");
-    if (modo_actual == MODO_AUTOMATICO)
-      Serial.println("AUTO");
-    else
-      Serial.println("MANUAL");
+    Serial.println(modo_actual == MODO_AUTOMATICO ? "AUTO" : "MANUAL");
 
     Serial.print("Pump: ");
-    if (bomba_estado())
-      Serial.println("ON");
-    else
-      Serial.println("OFF");
+    Serial.println(bomba_estado() ? "ON" : "OFF");
 
     Serial.println("----------------------");
   }
 
-  // Serial commands
-  if (Serial.available()) {
-
-    String comando = Serial.readStringUntil('\n');
-    comando.trim();
-
-    Serial.print("Comando recibido: ");
-    Serial.println(comando);
-
-    if (comando.startsWith("hmin ")) {
-      int valor = comando.substring(5).toInt();
-      persist_set_hmin(valor);
-    }
-
-    else if (comando.startsWith("hmax ")) {
-      int valor = comando.substring(5).toInt();
-      persist_set_hmax(valor);
-    }
-
-    else if (comando.startsWith("ssid ")) {
-      String valor = comando.substring(5);
-      valor.trim();
-      persist_set_ssid(valor);
-      Serial.println("SSID guardado. Escriba 'reconectar' para aplicar cambios.");
-    }
-
-    else if (comando.startsWith("pass ")) {
-      String valor = comando.substring(5);
-      valor.trim();
-      persist_set_pass(valor);
-      Serial.println("PASS guardado. Escriba 'reconectar' para aplicar cambios.");
-    }
-
-    else if (comando == "reconectar") {
-      wifi_reconnect_now();
-    }
-
-    else {
-      Serial.println("Comando no reconocido");
-      Serial.println("Use:");
-      Serial.println("hmin <valor>");
-      Serial.println("hmax <valor>");
-      Serial.println("ssid <nombre_red>");
-      Serial.println("pass <clave>");
-      Serial.println("reconectar");
-    }
-  }
+  // 🔧 COMANDOS SERIAL
+  procesar_comando_serial();
 }
